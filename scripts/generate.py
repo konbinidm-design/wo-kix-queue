@@ -76,7 +76,7 @@ def clean_name(name: str, limit: int = 32) -> str:
     s = unicodedata.normalize("NFKC", name)
     s = re.sub(r"[【\[［(（<＜《〈].*?[】\]］)）>＞》〉]", " ", s)
     s = re.sub(r"[★☆◆◇■□●○♪※!！]+", " ", s)
-    s = re.sub(r"(送料無料|ポイント\d+倍|楽天\S*位|あす楽|即納|クーポン\S*|最大\S*OFF|\d+%OFF)", " ", s)
+    s = re.sub(r"(送料無料|ポイント\d+倍|楽天\S*位|あす楽|即納|クーポン\S*|最大\S*OFF|\d+%OFF|レビュー(で|を書いて|特典)\S*)", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     if len(s) <= limit:
         return s
@@ -85,7 +85,7 @@ def clean_name(name: str, limit: int = 32) -> str:
     return (cut[:space] if space >= limit // 2 else cut).rstrip(" ・/、,") + "…"
 
 
-def build_post(item: dict, rng: random.Random) -> str:
+def build_post(item: dict, rng: random.Random, hook: str | None = None) -> str:
     name = clean_name(item["itemName"])
     price = f"{int(item['itemPrice']):,}円"
     review = ""
@@ -94,7 +94,7 @@ def build_post(item: dict, rng: random.Random) -> str:
     tags = " ".join(CONFIG["hashtags"])
     link = item["affiliateUrl"] or item["itemUrl"]
 
-    hook = rng.choice(HOOKS)
+    hook = hook or rng.choice(HOOKS)
     lines = [hook, "", f"▶ {name}", f"💰 {price}"]
     if review:
         lines.append(f"⭐ {review}")
@@ -108,6 +108,79 @@ def build_post(item: dict, rng: random.Random) -> str:
         lines[2] = f"▶ {clean_name(item['itemName'], shrink)}"
         text = "\n".join(lines)
     return text
+
+
+# ---------- 一言（Gemini） ----------
+
+GEMINI_PROMPT = """あなたはXの匿名アカウント「無駄遣い推進課」の中の人です。
+楽天の商品を紹介する投稿の、冒頭の「一言」を書いてください。
+
+【キャラ】
+- 「必要じゃないけど欲しくなる」を肯定する、ゆるくてちょっと自虐的な推進課の職員
+- 読んだ人がクスッとして、商品が気になる一言
+
+【ルール】
+- 1件につき1つ、全角15〜40文字、1〜2文
+- その商品ならではの具体的なポイント（使う場面・見た目・量・意外性・値段感など）に必ず触れる。どの商品にも使える汎用フレーズは禁止
+- 商品名をそのまま繰り返さない
+- 効果・効能を断定しない、「最安」「No.1」「絶対」などの誇大表現は禁止
+- 絵文字・ハッシュタグ・URLは入れない
+- 35件で言い回しや語尾が被らないようにする
+
+【出力】
+JSON配列のみ。入力と同じ順番で {"i": 番号, "hook": "一言"} を並べる。
+
+【商品】
+"""
+
+
+def gemini_hooks(items: list[dict]) -> dict[int, str]:
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key or not items:
+        return {}
+    lines = []
+    for i, it in enumerate(items):
+        desc = " / ".join(x for x in [it.get("catchcopy", ""), it.get("caption", "")[:150]] if x)
+        lines.append(f'{i}. {clean_name(it["itemName"], 60)}｜{int(it["itemPrice"]):,}円｜{desc}')
+    body = {
+        "contents": [{"parts": [{"text": GEMINI_PROMPT + "\n".join(lines)}]}],
+        "generationConfig": {"responseMimeType": "application/json", "temperature": 1.0},
+    }
+    model = CONFIG.get("gemini_model", "gemini-flash-latest")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            text = re.sub(r"^```(json)?|```$", "", text.strip()).strip()
+            out = {}
+            for row in json.loads(text):
+                h = str(row.get("hook", "")).strip()
+                h = re.sub(r"https?://\S+|#\S+", "", h).strip()
+                if 4 <= len(h) <= 60:
+                    out[int(row["i"])] = h
+            print(f"Gemini：{len(out)}/{len(items)} 件の一言を生成")
+            return out
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode("utf-8", "replace")[:200]
+            print(f"::warning::Gemini エラー {e.code}: {msg}")
+            if e.code in (429, 500, 503) and attempt < 2:
+                time.sleep(20)
+                continue
+            break
+        except Exception as e:  # noqa: BLE001
+            print(f"::warning::Gemini の結果を読めませんでした: {e}")
+            if attempt < 2:
+                time.sleep(5)
+                continue
+            break
+    print("::warning::一言はテンプレートで代用しました")
+    return {}
 
 
 # ---------- 楽天 API ----------
@@ -172,6 +245,8 @@ def normalize(raw: dict) -> dict:
         "reviewAverage": raw.get("reviewAverage", 0),
         "reviewCount": raw.get("reviewCount", 0),
         "shopName": raw.get("shopName", ""),
+        "catchcopy": raw.get("catchcopy", ""),
+        "caption": re.sub(r"<[^>]+>|\s+", " ", raw.get("itemCaption", ""))[:300],
     }
 
 
@@ -417,6 +492,8 @@ def main() -> None:
         shutil.rmtree(week_dir)
     week_dir.mkdir(parents=True)
 
+    hooks = {} if args.dry_run else gemini_hooks(items)
+
     posts = []
     youbi = "月火水木金土日"
     for i, it in enumerate(items):
@@ -430,7 +507,7 @@ def main() -> None:
             fname = f"{base}.jpg"
             if not download(it["imageUrl"], week_dir / fname):
                 continue
-        text = build_post(it, rng)
+        text = build_post(it, rng, hooks.get(i))
         (week_dir / f"{base}.txt").write_text(text, encoding="utf-8")
         posts.append({
             "id": base,

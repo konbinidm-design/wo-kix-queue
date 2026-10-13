@@ -18,6 +18,7 @@
    | `RAKUTEN_ACCESS_KEY` | 楽天のアクセスキー |
    | `RAKUTEN_AFFILIATE_ID` | 楽天アフィリエイトID |
    | `RAKUTEN_ORIGIN` | 楽天アプリに登録した許可サイトのURL（今まで Origin ヘッダーに入れていた値） |
+   | `GEMINI_API_KEY` | Google AI Studio のAPIキー（商品ごとの一言を生成。なければテンプレートで代用） |
 
 3. **Pages を有効化**
    Settings → Pages → Source: Deploy from a branch → Branch: `main` / `/docs` → Save
@@ -35,7 +36,7 @@
 - `min_review_count` / `min_review_average`：レビューの足切り
 - `hashtags`：投稿の末尾につくタグ（ステマ規制対策で `#PR` は残す）
 
-投稿文のフックは `scripts/generate.py` の `HOOKS` にある。
+商品ごとの一言の指示（キャラ・ルール）は `scripts/generate.py` の `GEMINI_PROMPT`、予備のテンプレートは `HOOKS` にある。
 
 ## 仕組み
 

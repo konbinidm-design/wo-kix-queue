@@ -1,6 +1,12 @@
 {
   "days": 7,
-  "slots": ["08:00", "12:00", "18:00", "21:00", "23:00"],
+  "slots": [
+    "08:00",
+    "12:00",
+    "18:00",
+    "21:00",
+    "23:00"
+  ],
   "keywords": [
     "おもしろグッズ",
     "便利グッズ",
@@ -20,5 +26,8 @@
   "min_review_count": 10,
   "min_review_average": 3.8,
   "keep_weeks": 4,
-  "hashtags": ["#PR"]
+  "hashtags": [
+    "#PR"
+  ],
+  "gemini_model": "gemini-flash-latest"
 }
