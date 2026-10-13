@@ -75,8 +75,10 @@ def clean_name(name: str, limit: int = 32) -> str:
     """楽天の長い商品名から、飾りや宣伝文句を落として短くする。"""
     s = unicodedata.normalize("NFKC", name)
     s = re.sub(r"[【\[［(（<＜《〈].*?[】\]］)）>＞》〉]", " ", s)
+    s = re.sub(r"^[^【]*?】", " ", s)  # 閉じだけ残った【】
+    s = re.sub(r"[\\＼].*?[/／]", " ", s)  # ＼キャッチコピー／
     s = re.sub(r"[★☆◆◇■□●○♪※!！]+", " ", s)
-    s = re.sub(r"(送料無料|ポイント\d+倍|楽天\S*位|あす楽|即納|クーポン\S*|最大\S*OFF|\d+%OFF|レビュー(で|を書いて|特典)\S*)", " ", s)
+    s = re.sub(r"(送料無料|ポイント\d+倍|楽天\S*位|あす楽|即納|クーポン\S*|最大\S*OFF|\d+%OFF|レビュー(で|を書いて|特典)\S*|P\d+倍\S*|\d+日\d+時\S*|\d+時[〜~]\S*|を\d+回)", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     if len(s) <= limit:
         return s
@@ -167,7 +169,12 @@ def gemini_hooks(items: list[dict]) -> dict[int, str]:
             print(f"Gemini：{len(out)}/{len(items)} 件の一言を生成")
             return out
         except urllib.error.HTTPError as e:
-            msg = e.read().decode("utf-8", "replace")[:200]
+            raw = e.read().decode("utf-8", "replace")
+            try:
+                msg = json.loads(raw)["error"]["message"]
+            except Exception:  # noqa: BLE001
+                msg = raw
+            msg = re.sub(r"\s+", " ", msg)[:300]
             print(f"::warning::Gemini エラー {e.code}: {msg}")
             if e.code in (429, 500, 503) and attempt < 2:
                 time.sleep(20)
