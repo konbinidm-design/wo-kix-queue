@@ -31,7 +31,7 @@ CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 HISTORY_PATH = ROOT / "history.json"
 JST = dt.timezone(dt.timedelta(hours=9))
 
-API_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601"
+API_URL = "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701"
 
 HOOKS = [
     "これは買わなくていい。でも欲しい。",
