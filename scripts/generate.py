@@ -464,4 +464,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        if e.code not in (None, 0):
+            # GitHub Actions の画面にエラー内容を表示する
+            print(f"::error::{e.code}")
+        raise
+    except Exception as e:  # noqa: BLE001
+        print(f"::error::{type(e).__name__}: {e}")
+        raise
