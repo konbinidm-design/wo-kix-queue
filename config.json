@@ -29,5 +29,9 @@
   "hashtags": [
     "#PR"
   ],
-  "gemini_model": "gemini-flash-latest"
+  "gemini_models": [
+    "gemini-2.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-flash-latest"
+  ]
 }

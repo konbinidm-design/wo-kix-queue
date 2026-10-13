@@ -148,44 +148,45 @@ def gemini_hooks(items: list[dict]) -> dict[int, str]:
         "contents": [{"parts": [{"text": GEMINI_PROMPT + "\n".join(lines)}]}],
         "generationConfig": {"responseMimeType": "application/json", "temperature": 1.0},
     }
-    model = CONFIG.get("gemini_model", "gemini-flash-latest")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    req = urllib.request.Request(
-        url, data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key},
-    )
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
-                data = json.loads(r.read().decode("utf-8"))
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-            text = re.sub(r"^```(json)?|```$", "", text.strip()).strip()
-            out = {}
-            for row in json.loads(text):
-                h = str(row.get("hook", "")).strip()
-                h = re.sub(r"https?://\S+|#\S+", "", h).strip()
-                if 4 <= len(h) <= 60:
-                    out[int(row["i"])] = h
-            print(f"Gemini：{len(out)}/{len(items)} 件の一言を生成")
-            return out
-        except urllib.error.HTTPError as e:
-            raw = e.read().decode("utf-8", "replace")
+    models = CONFIG.get("gemini_models") or ["gemini-flash-latest"]
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json", "x-goog-api-key": key},
+        )
+        for attempt in range(3):
             try:
-                msg = json.loads(raw)["error"]["message"]
-            except Exception:  # noqa: BLE001
-                msg = raw
-            msg = re.sub(r"\s+", " ", msg)[:300]
-            print(f"::warning::Gemini エラー {e.code}: {msg}")
-            if e.code in (429, 500, 503) and attempt < 2:
-                time.sleep(20)
-                continue
-            break
-        except Exception as e:  # noqa: BLE001
-            print(f"::warning::Gemini の結果を読めませんでした: {e}")
-            if attempt < 2:
-                time.sleep(5)
-                continue
-            break
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    data = json.loads(r.read().decode("utf-8"))
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                text = re.sub(r"^```(json)?|```$", "", text.strip()).strip()
+                out = {}
+                for row in json.loads(text):
+                    h = str(row.get("hook", "")).strip()
+                    h = re.sub(r"https?://\S+|#\S+", "", h).strip()
+                    if 4 <= len(h) <= 60:
+                        out[int(row["i"])] = h
+                print(f"::notice::Gemini（{model}）：{len(out)}/{len(items)} 件の一言を生成")
+                return out
+            except urllib.error.HTTPError as e:
+                raw = e.read().decode("utf-8", "replace")
+                try:
+                    msg = json.loads(raw)["error"]["message"]
+                except Exception:  # noqa: BLE001
+                    msg = raw
+                msg = re.sub(r"\s+", " ", msg)[:300]
+                print(f"::warning::Gemini（{model}）エラー {e.code}: {msg}")
+                if e.code in (429, 500, 503) and attempt < 2:
+                    time.sleep(20)
+                    continue
+                break  # 403/404 などは次のモデルへ
+            except Exception as e:  # noqa: BLE001
+                print(f"::warning::Gemini（{model}）の結果を読めませんでした: {e}")
+                if attempt < 2:
+                    time.sleep(5)
+                    continue
+                break
     print("::warning::一言はテンプレートで代用しました")
     return {}
 
