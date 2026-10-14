@@ -87,6 +87,39 @@ def clean_name(name: str, limit: int = 32) -> str:
     return (cut[:space] if space >= limit // 2 else cut).rstrip(" ・/、,") + "…"
 
 
+COLOR_WORDS = {
+    "ブラック", "ホワイト", "グレー", "グレイ", "ネイビー", "ベージュ", "ブラウン", "レッド", "ピンク",
+    "ブルー", "グリーン", "イエロー", "オレンジ", "パープル", "シルバー", "ゴールド", "黒", "白",
+    "全色", "単品", "新色", "カラー", "サイズ", "大", "中", "小", "S", "M", "L",
+}
+
+
+def name_tokens(name: str) -> set[str]:
+    """サイズ・数量・型番を除いた、商品名の中身の単語。"""
+    words = re.split(r"[\s・/|｜,、]+", clean_name(name, 80).rstrip("…"))
+    out = set()
+    for w in words:
+        w = re.sub(r"\d+(\.\d+)?(cm|mm|m|ml|l|g|kg|個|枚|本|点|袋|箱|入|セット|L|W|mAh|インチ)?", "", w, flags=re.I)
+        w = re.sub(r"[〜~×xX\-]+", "", w)
+        if w in COLOR_WORDS:
+            continue
+        if len(w) >= 2:
+            out.add(w.lower())
+    return out
+
+
+def is_similar(a: dict, b: dict) -> bool:
+    """サイズ違い・色違い・セット数違いなど、ほぼ同じ商品かどうか。"""
+    if a.get("imageUrl") and a.get("imageUrl", "").split("?")[0] == b.get("imageUrl", "").split("?")[0]:
+        return True
+    ta, tb = name_tokens(a["itemName"]), name_tokens(b["itemName"])
+    if not ta or not tb:
+        return False
+    jac = len(ta & tb) / len(ta | tb)
+    same_shop = a.get("shopName") and a.get("shopName") == b.get("shopName")
+    return jac >= (0.45 if same_shop else 0.7)
+
+
 def build_post(item: dict, rng: random.Random, hook: str | None = None) -> str:
     name = clean_name(item["itemName"])
     price = f"{int(item['itemPrice']):,}円"
@@ -275,7 +308,6 @@ def collect(need: int, history: set[str], rng: random.Random) -> list[dict]:
     picked: list[dict] = []
     seen_codes = set(history)
     seen_shops: dict[str, int] = {}
-    seen_names: set[str] = set()
 
     page = 1
     while len(picked) < need and page <= 3:
@@ -296,10 +328,9 @@ def collect(need: int, history: set[str], rng: random.Random) -> list[dict]:
                     continue
                 if seen_shops.get(it["shopName"], 0) >= 2:
                     continue
-                key = re.sub(r"[\s\d]", "", clean_name(it["itemName"], 40))[:8]
-                if key in seen_names:
-                    continue  # サイズ違いなどほぼ同じ商品
-                seen_names.add(key)
+                if any(is_similar(it, q) for q in picked):
+                    print(f"  類似商品を除外: {clean_name(it['itemName'], 30)}")
+                    continue  # サイズ違い・色違いなど
                 it["keyword"] = kw
                 picked.append(it)
                 seen_codes.add(it["itemCode"])
@@ -501,6 +532,8 @@ def main() -> None:
     rng = random.Random(week)
 
     history = json.loads(HISTORY_PATH.read_text(encoding="utf-8")) if HISTORY_PATH.exists() else []
+    week_dates = {(start + dt.timedelta(days=d)).isoformat() for d in range(CONFIG["days"])}
+    history = [h for h in history if h.get("date") not in week_dates]  # 作り直し時は前回分を外す
     hist_codes = {h["itemCode"] for h in history}
 
     if args.dry_run:
