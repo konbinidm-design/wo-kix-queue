@@ -181,20 +181,16 @@ JSON配列のみ。入力と同じ順番で {"i": 番号, "hook": "一言"} を�
 """
 
 
-def gemini_hooks(items: list[dict]) -> dict[int, str]:
+def gemini_json(prompt: str, label: str, temperature: float = 1.0):
+    """Gemini に JSON を返させる。全モデルで失敗したら None。"""
     key = os.environ.get("GEMINI_API_KEY")
-    if not key or not items:
-        return {}
-    lines = []
-    for i, it in enumerate(items):
-        desc = " / ".join(x for x in [it.get("catchcopy", ""), it.get("caption", "")[:150]] if x)
-        lines.append(f'{i}. {clean_name(it["itemName"], 60)}｜{int(it["itemPrice"]):,}円｜{desc}')
+    if not key:
+        return None
     body = {
-        "contents": [{"parts": [{"text": GEMINI_PROMPT + "\n".join(lines)}]}],
-        "generationConfig": {"responseMimeType": "application/json", "temperature": 1.0},
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json", "temperature": temperature},
     }
-    models = CONFIG.get("gemini_models") or ["gemini-flash-latest"]
-    for model in models:
+    for model in CONFIG.get("gemini_models") or ["gemini-flash-latest"]:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         req = urllib.request.Request(
             url, data=json.dumps(body).encode("utf-8"),
@@ -206,14 +202,9 @@ def gemini_hooks(items: list[dict]) -> dict[int, str]:
                     data = json.loads(r.read().decode("utf-8"))
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
                 text = re.sub(r"^```(json)?|```$", "", text.strip()).strip()
-                out = {}
-                for row in json.loads(text):
-                    h = str(row.get("hook", "")).strip()
-                    h = re.sub(r"https?://\S+|#\S+", "", h).strip()
-                    if 4 <= len(h) <= 60:
-                        out[int(row["i"])] = h
-                print(f"::notice::Gemini（{model}）：{len(out)}/{len(items)} 件の一言を生成")
-                return out
+                result = json.loads(text)
+                print(f"::notice::Gemini（{model}）：{label} OK")
+                return result
             except urllib.error.HTTPError as e:
                 raw = e.read().decode("utf-8", "replace")
                 try:
@@ -221,19 +212,134 @@ def gemini_hooks(items: list[dict]) -> dict[int, str]:
                 except Exception:  # noqa: BLE001
                     msg = raw
                 msg = re.sub(r"\s+", " ", msg)[:300]
-                print(f"::warning::Gemini（{model}）エラー {e.code}: {msg}")
+                print(f"::warning::Gemini（{model}）{label} エラー {e.code}: {msg}")
                 if e.code in (429, 500, 503) and attempt < 2:
                     time.sleep(20)
                     continue
                 break  # 403/404 などは次のモデルへ
             except Exception as e:  # noqa: BLE001
-                print(f"::warning::Gemini（{model}）の結果を読めませんでした: {e}")
+                print(f"::warning::Gemini（{model}）{label} の結果を読めませんでした: {e}")
                 if attempt < 2:
                     time.sleep(5)
                     continue
                 break
-    print("::warning::一言はテンプレートで代用しました")
-    return {}
+    return None
+
+
+def gemini_hooks(items: list[dict]) -> dict[int, str]:
+    if not items:
+        return {}
+    lines = []
+    for i, it in enumerate(items):
+        desc = " / ".join(x for x in [it.get("catchcopy", ""), it.get("caption", "")[:150]] if x)
+        lines.append(f'{i}. {clean_name(it["itemName"], 60)}｜{int(it["itemPrice"]):,}円｜{desc}')
+    rows = gemini_json(GEMINI_PROMPT + "\n".join(lines), "一言")
+    out: dict[int, str] = {}
+    for row in rows or []:
+        try:
+            h = str(row.get("hook", "")).strip()
+            h = re.sub(r"https?://\S+|#\S+", "", h).strip()
+            if 4 <= len(h) <= 60:
+                out[int(row["i"])] = h
+        except Exception:  # noqa: BLE001
+            continue
+    if not out:
+        print("::warning::一言はテンプレートで代用しました")
+    else:
+        print(f"一言：{len(out)}/{len(items)} 件")
+    return out
+
+
+# ---------- ジャンル ----------
+
+GENRES = {
+    "ポーチ・バッグ": ["ポーチ", "バッグ", "ポシェット", "ショルダー", "リュック", "財布", "パスケース"],
+    "充電・ケーブル": ["充電", "ケーブル", "バッテリー", "アダプター", "電源タップ", "usb"],
+    "ガジェット": ["ガジェット", "ラジオ", "スピーカー", "タブレット", "イヤホン", "カードリーダー"],
+    "生活家電": ["クリーナー", "掃除機", "加湿", "扇風機", "ヒーター", "ドライヤー"],
+    "照明・時計": ["ライト", "ランプ", "照明", "時計", "プラネタリウム"],
+    "収納・整理": ["収納", "マグネット", "フック", "ラック", "ボックス", "ホルダー", "棚"],
+    "キッチン": ["キッチン", "まな板", "ボウル", "ザル", "トング", "計量", "水切り", "調味料", "包丁", "ナイフ"],
+    "掃除・日用品": ["掃除", "ゴミ", "洗剤", "スポンジ", "クロス", "ラップ", "ティッシュ"],
+    "バス・トイレ": ["浴室", "お風呂", "バス", "トイレ", "石鹸", "シャワー"],
+    "お菓子": ["お菓子", "チョコ", "クッキー", "けんぴ", "おかき", "マカロン", "羊羹", "スイーツ"],
+    "食品・グルメ": ["ハンバーグ", "肉", "米", "ラーメン", "カレー", "食品", "グルメ"],
+    "ファッション": ["tシャツ", "パンツ", "帽子", "ベルト", "靴", "フェイスカバー", "ネックレス"],
+    "インテリア・雑貨": ["インテリア", "置物", "カーテン", "風鈴", "雑貨", "トレー"],
+    "リラックス・寝具": ["枕", "アロマ", "アイマスク", "ホットマット", "湯たんぽ", "毛布"],
+    "美容・ケア": ["マッサージ", "ヘッドスパ", "ems", "温熱", "耳かき", "爪", "美容"],
+    "アウトドア・旅行": ["キャンプ", "アウトドア", "旅行", "トラベル", "スーツケース", "圧縮"],
+    "車・自転車": ["車", "カー用品", "自転車", "バイク"],
+    "文房具・デスク": ["ペン", "文房具", "デスク", "ファイル", "ノート"],
+    "ペット": ["犬", "猫用", "ペット"],
+    "ギフト・名入れ": ["名入れ", "ギフト", "プレゼント", "還暦", "出産祝い", "はんこ", "印鑑"],
+    "おもしろ・ネタ": ["おもしろ", "ネタ", "面白", "ジョーク", "パーティー"],
+}
+GENRE_NAMES = list(GENRES) + ["その他"]
+
+
+def keyword_genre(it: dict) -> str:
+    name = clean_name(it["itemName"], 80).lower()
+    for g, words in GENRES.items():
+        if any(w in name for w in words):
+            return g
+    return "その他"
+
+
+def classify(items: list[dict]) -> list[str]:
+    """商品ごとのジャンル。Gemini で判定し、だめならキーワードで判定。"""
+    prompt = (
+        "次の楽天の商品それぞれに、ジャンルを1つ選んでください。\n"
+        f"ジャンルの候補（この中から必ず選ぶ）：{'、'.join(GENRE_NAMES)}\n"
+        "見た目より『何に使う物か』で選ぶ。例：スマホを入れるポーチは「ポーチ・バッグ」、"
+        "名入れでもTシャツなら「ファッション」。\n"
+        'JSON配列のみで、入力と同じ順番に {"i": 番号, "genre": "ジャンル"} を並べる。\n\n'
+        + "\n".join(f"{i}. {clean_name(it['itemName'], 60)}" for i, it in enumerate(items))
+    )
+    result = [keyword_genre(it) for it in items]
+    rows = gemini_json(prompt, "ジャンル判定", temperature=0.2)
+    hit = 0
+    for row in rows or []:
+        try:
+            i, g = int(row["i"]), str(row["genre"]).strip()
+            if 0 <= i < len(items) and g in GENRE_NAMES:
+                result[i] = g
+                hit += 1
+        except Exception:  # noqa: BLE001
+            continue
+    print(f"ジャンル判定：AI {hit}件 / キーワード {len(items) - hit}件")
+    return result
+
+
+def pick_by_genre(cands: list[dict], genres: list[str], need: int, cap: int) -> list[dict]:
+    """ジャンルごとの上限を守って選ぶ。足りなければ上限を少しずつ緩める。"""
+    for limit in range(cap, cap + 4):
+        counts: dict[str, int] = {}
+        picked = []
+        for it, g in zip(cands, genres):
+            if len(picked) >= need:
+                break
+            if counts.get(g, 0) >= limit:
+                continue
+            counts[g] = counts.get(g, 0) + 1
+            it["genre"] = g
+            picked.append(it)
+        if len(picked) >= need:
+            if limit > cap:
+                print(f"::warning::候補が足りず、ジャンル上限を{limit}件に緩めました")
+            break
+    # 同じジャンルが続かないように並べ替え
+    ordered: list[dict] = []
+    rest = picked[:]
+    while rest:
+        prev = ordered[-1]["genre"] if ordered else None
+        idx = next((k for k, x in enumerate(rest) if x["genre"] != prev), 0)
+        ordered.append(rest.pop(idx))
+    summary = {}
+    for x in ordered:
+        summary[x["genre"]] = summary.get(x["genre"], 0) + 1
+    print("ジャンル内訳：" + "、".join(f"{k}{v}" for k, v in sorted(summary.items(), key=lambda kv: -kv[1])))
+    return ordered
 
 
 # ---------- 楽天 API ----------
@@ -303,7 +409,7 @@ def normalize(raw: dict) -> dict:
     }
 
 
-def collect(need: int, history: set[str], rng: random.Random) -> list[dict]:
+def collect(need: int, history: set[str], rng: random.Random, per_keyword: int = 3) -> list[dict]:
     keywords = CONFIG["keywords"][:]
     rng.shuffle(keywords)
     picked: list[dict] = []
@@ -319,7 +425,7 @@ def collect(need: int, history: set[str], rng: random.Random) -> list[dict]:
             rng.shuffle(items)
             took = 0
             for it in items:
-                if took >= 3 or len(picked) >= need:
+                if took >= per_keyword or len(picked) >= need:
                     break
                 if not it["imageUrl"] or it["itemCode"] in seen_codes:
                     continue
@@ -542,8 +648,11 @@ def main() -> None:
     else:
         if not os.environ.get("RAKUTEN_APP_ID"):
             raise SystemExit("RAKUTEN_APP_ID が設定されていません（GitHub の Secrets を確認）")
-        items = collect(need, hist_codes, rng)
-        print(f"{len(items)}/{need} 件の商品を取得")
+        pool = collect(need * 2, hist_codes, rng, per_keyword=6)
+        print(f"候補 {len(pool)} 件を取得")
+        genres = classify(pool)
+        items = pick_by_genre(pool, genres, need, CONFIG.get("genre_cap", 2))
+        print(f"{len(items)}/{need} 件を選択")
 
     week_dir = DOCS / week
     if week_dir.exists():
