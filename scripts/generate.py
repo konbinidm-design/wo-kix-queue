@@ -169,7 +169,7 @@ GEMINI_PROMPT = """あなたはXの匿名アカウント「無駄遣い推進課
 - 1件につき1つ、全角15〜45文字
 - その商品ならではの具体的なポイント（使う場面・見た目・量・意外性・値段感など）に必ず触れる。どの商品にも使える汎用フレーズは禁止
 - 商品名をそのまま繰り返さない
-- 効果・効能は書かない。特に美容・健康・マッサージ・寝具・家電は「疲れが取れる」「痩せる」「毛穴」「ストレスが減る」「よく眠れる」「ストレス解消」「罪悪感なく」「ヘルシー」など体や心への効果に触れず、見た目・使う場面・感想にとどめる
+- どんな商品でも紹介してよいが、言い方には法律（薬機法・景品表示法）の縛りがある。効果・効能は書かない。特に化粧品・シャンプー・ヘアケア・スキンケア・美容・健康・マッサージ・寝具・家電・掃除用品は「疲れが取れる」「痩せる」「毛穴」「ストレスが減る」「よく眠れる」「ストレス解消」「罪悪感なく」「ヘルシー」「髪色がキープ」「髪がまとまる」「肌がきれいに」「汚れが落ちる」「除菌」など、体・髪・肌・心への効果や、性能を言い切る表現は使わず、見た目・香り・パッケージ・使う場面・感想にとどめる
 - 「最安」「No.1」「絶対〜できる」などの誇大表現は禁止
 - 絵文字・ハッシュタグ・URLは入れない
 - 書き出しや語尾が他の件と被らないようにする
@@ -248,6 +248,50 @@ def gemini_hooks(items: list[dict]) -> dict[int, str]:
     else:
         print(f"一言：{len(out)}/{len(items)} 件")
     return out
+
+
+# ---------- 表現チェック ----------
+
+RISKY = re.compile(
+    r"(効く|効果|効能|治る|改善|予防|解消|痩せ|やせ|デトックス|アンチエイジング|若返|美白|シミ|シワ|毛穴|"
+    r"育毛|発毛|抜け毛|髪色が?キープ|色落ちしな|髪がまとま|ツヤツヤ|うるおう|保湿され|肌が|"
+    r"疲れが取れ|疲労回復|血行|むくみ|肩こり|腰痛|よく眠れ|快眠|安眠|ストレス|リラックス効果|"
+    r"除菌|殺菌|抗菌|ウイルス|99|最安|日本一|世界一|No\.?1|ナンバーワン|絶対(に)?(落ち|治|痩|効))",
+    re.I,
+)
+
+
+def risky_words(text: str) -> list[str]:
+    return sorted({m.group(0) for m in RISKY.finditer(text)})
+
+
+def fix_risky_hooks(items: list[dict], hooks: dict[int, str]) -> dict[int, str]:
+    bad = {i: h for i, h in hooks.items() if risky_words(h)}
+    if not bad:
+        return hooks
+    print(f"::notice::表現チェック：{len(bad)}件を書き直します")
+    lines = [
+        f'{i}. 商品：{clean_name(items[i]["itemName"], 50)}｜元の一言：{h}｜NG語：{"・".join(risky_words(h))}'
+        for i, h in bad.items()
+    ]
+    prompt = (
+        "次の一言は、薬機法・景品表示法に触れそうな言葉が入っています。"
+        "同じ砕けたタメ口のノリのまま、NG語と、体・髪・肌・心への効果や性能を言い切る表現を使わずに書き直してください。"
+        "見た目・香り・パッケージ・使う場面・感想の話にすること。全角15〜45文字。\n"
+        'JSON配列のみ：{"i": 番号, "hook": "書き直した一言"}\n\n' + "\n".join(lines)
+    )
+    for row in gemini_json(prompt, "表現の書き直し") or []:
+        try:
+            i, h = int(row["i"]), str(row["hook"]).strip()
+            if i in bad and 4 <= len(h) <= 60 and not risky_words(h):
+                hooks[i] = h
+                bad.pop(i)
+        except Exception:  # noqa: BLE001
+            continue
+    for i in bad:  # 書き直せなかったものは一言をテンプレートに
+        print(f"::warning::表現チェック：書き直せなかったのでテンプレートに差し替え（{clean_name(items[i]['itemName'], 20)}）")
+        hooks.pop(i, None)
+    return hooks
 
 
 # ---------- ジャンル ----------
@@ -673,7 +717,7 @@ def main() -> None:
         shutil.rmtree(week_dir)
     week_dir.mkdir(parents=True)
 
-    hooks = {} if args.dry_run else gemini_hooks(items)
+    hooks = {} if args.dry_run else fix_risky_hooks(items, gemini_hooks(items))
 
     posts = []
     youbi = "月火水木金土日"
