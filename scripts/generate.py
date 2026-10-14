@@ -198,7 +198,7 @@ def gemini_json(prompt: str, label: str, temperature: float = 1.0):
         )
         for attempt in range(3):
             try:
-                with urllib.request.urlopen(req, timeout=120) as r:
+                with urllib.request.urlopen(req, timeout=240) as r:
                     data = json.loads(r.read().decode("utf-8"))
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
                 text = re.sub(r"^```(json)?|```$", "", text.strip()).strip()
@@ -326,7 +326,7 @@ def pick_by_genre(cands: list[dict], genres: list[str], need: int, cap: int) -> 
             picked.append(it)
         if len(picked) >= need:
             if limit > cap:
-                print(f"::warning::候補が足りず、ジャンル上限を{limit}件に緩めました")
+                print(f"::warning::候補のジャンルが偏っていたため、上限を{limit}件に緩めました")
             break
     # 同じジャンルが続かないように並べ替え
     ordered: list[dict] = []
@@ -338,7 +338,7 @@ def pick_by_genre(cands: list[dict], genres: list[str], need: int, cap: int) -> 
     summary = {}
     for x in ordered:
         summary[x["genre"]] = summary.get(x["genre"], 0) + 1
-    print("ジャンル内訳：" + "、".join(f"{k}{v}" for k, v in sorted(summary.items(), key=lambda kv: -kv[1])))
+    print("::notice::ジャンル内訳：" + "、".join(f"{k}{v}" for k, v in sorted(summary.items(), key=lambda kv: -kv[1])))
     return ordered
 
 
@@ -648,8 +648,8 @@ def main() -> None:
     else:
         if not os.environ.get("RAKUTEN_APP_ID"):
             raise SystemExit("RAKUTEN_APP_ID が設定されていません（GitHub の Secrets を確認）")
-        pool = collect(need * 2, hist_codes, rng, per_keyword=6)
-        print(f"候補 {len(pool)} 件を取得")
+        pool = collect(need * 3, hist_codes, rng, per_keyword=8)
+        print(f"::notice::候補 {len(pool)} 件を取得")
         genres = classify(pool)
         items = pick_by_genre(pool, genres, need, CONFIG.get("genre_cap", 2))
         print(f"{len(items)}/{need} 件を選択")
@@ -685,7 +685,7 @@ def main() -> None:
             "fileName": f"wokix_{base}{Path(fname).suffix}",
             "text": text,
             "itemUrl": it["itemUrl"],
-            "keyword": it.get("keyword", ""),
+            "keyword": it.get("genre") or it.get("keyword", ""),
             "itemCode": it["itemCode"],
         })
 
