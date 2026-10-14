@@ -74,11 +74,11 @@ def x_weight(text: str) -> int:
 def clean_name(name: str, limit: int = 32) -> str:
     """楽天の長い商品名から、飾りや宣伝文句を落として短くする。"""
     s = unicodedata.normalize("NFKC", name)
-    s = re.sub(r"[【\[［(（<＜《〈].*?[】\]］)）>＞》〉]", " ", s)
+    s = re.sub(r"[【\[［(（<＜《〈≪«].*?[】\]］)）>＞》〉≫»]", " ", s)
     s = re.sub(r"^[^【]*?】", " ", s)  # 閉じだけ残った【】
     s = re.sub(r"[\\＼].*?[/／]", " ", s)  # ＼キャッチコピー／
     s = re.sub(r"[★☆◆◇■□●○♪※!！]+", " ", s)
-    s = re.sub(r"(送料無料|ポイント\d+倍|楽天\S*位|あす楽|即納|クーポン\S*|最大\S*OFF|\d+%OFF|レビュー(で|を書いて|特典)\S*|P\d+倍\S*|\d+日\d+時\S*|\d+時[〜~]\S*|を\d+回)", " ", s)
+    s = re.sub(r"(送料無料|ポイント\d+倍|楽天\S*位|あす楽|即納|クーポン\S*|最大\S*OFF|\d+%OFF|レビュー(で|を書いて|特典)\S*|P\d+倍\S*|\d+日\d+時\S*|\d+時[〜~]\S*|を\d+回|新色登場|\d+冠|全店\S*価格\S*)", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     if len(s) <= limit:
         return s
@@ -275,6 +275,7 @@ def collect(need: int, history: set[str], rng: random.Random) -> list[dict]:
     picked: list[dict] = []
     seen_codes = set(history)
     seen_shops: dict[str, int] = {}
+    seen_names: set[str] = set()
 
     page = 1
     while len(picked) < need and page <= 3:
@@ -295,6 +296,10 @@ def collect(need: int, history: set[str], rng: random.Random) -> list[dict]:
                     continue
                 if seen_shops.get(it["shopName"], 0) >= 2:
                     continue
+                key = re.sub(r"[\s\d]", "", clean_name(it["itemName"], 40))[:8]
+                if key in seen_names:
+                    continue  # サイズ違いなどほぼ同じ商品
+                seen_names.add(key)
                 it["keyword"] = kw
                 picked.append(it)
                 seen_codes.add(it["itemCode"])
