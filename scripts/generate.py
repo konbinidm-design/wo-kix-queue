@@ -497,7 +497,15 @@ def dummy_image(dest: Path, label: str) -> None:
 
 # ---------- 確認ページ ----------
 
-def render_page(week_key: str, week_label: str, posts: list[dict], generated: str) -> str:
+def render_page(week_key: str, week_label: str, posts: list[dict], generated: str, others: list[str] | None = None) -> str:
+    nav = ""
+    if others:
+        links = " ".join(
+            f'<a href="{w}/" class="wk">{int(w[4:6])}/{int(w[6:8])}〜</a>' for w in others if w != week_key
+        )
+        if links:
+            nav = f'<p class="nav">ほかの回：{links}</p>'
+
     cards = []
     current_day = None
     for p in posts:
@@ -548,6 +556,8 @@ header p {{ margin:2px 0 0; color:var(--sub); font-size:13px; }}
 .done input {{ width:22px; height:22px; }}
 .src {{ display:inline-block; margin-top:8px; font-size:13px; color:var(--sub); }}
 .hide-done .card.is-done {{ display:none; }}
+.nav {{ font-size:13px; margin:8px 0 0; color:var(--sub); }}
+.nav .wk {{ color:var(--accent); margin-right:8px; }}
 .toggle {{ font:inherit; font-size:13px; margin-top:8px; background:none; border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:4px 10px; }}
 </style>
 </head>
@@ -557,6 +567,7 @@ header p {{ margin:2px 0 0; color:var(--sub); font-size:13px; }}
   <p>{len(posts)}件 ・ 生成 {html.escape(generated)} ・ <span id="count">0</span>件 済</p>
   <div class="progress"><i id="bar"></i></div>
   <button class="toggle" id="toggle">済を隠す</button>
+  {nav}
 </header>
 <main>
 {''.join(cards)}
@@ -629,13 +640,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="API を呼ばずダミーで生成")
     ap.add_argument("--start", help="開始日 YYYY-MM-DD（省略時は次の月曜）")
+    ap.add_argument("--days", type=int, help="何日分作るか（省略時は config の days）")
     args = ap.parse_args()
 
     now = dt.datetime.now(JST)
     start = dt.date.fromisoformat(args.start) if args.start else next_monday(now.date())
     week = start.strftime("%Y%m%d")
     slots = CONFIG["slots"]
-    need = CONFIG["days"] * len(slots)
+    days = args.days or CONFIG["days"]
+    CONFIG["days"] = days
+    need = days * len(slots)
     rng = random.Random(week)
 
     history = json.loads(HISTORY_PATH.read_text(encoding="utf-8")) if HISTORY_PATH.exists() else []
@@ -689,8 +703,10 @@ def main() -> None:
             "itemCode": it["itemCode"],
         })
 
-    label = f"{start.month}/{start.day}週"
-    page = render_page(week, label, posts, now.strftime("%m/%d %H:%M"))
+    end = start + dt.timedelta(days=days - 1)
+    label = f"{start.month}/{start.day}〜{end.month}/{end.day}"
+    others = sorted((d.name for d in DOCS.iterdir() if d.is_dir() and re.fullmatch(r"\d{8}", d.name)), reverse=True)
+    page = render_page(week, label, posts, now.strftime("%m/%d %H:%M"), others)
     (week_dir / "index.html").write_text(page.replace(f'src="{week}/', 'src="'), encoding="utf-8")
     (DOCS / "index.html").write_text(page, encoding="utf-8")
     (week_dir / "posts.json").write_text(json.dumps(posts, ensure_ascii=False, indent=1), encoding="utf-8")

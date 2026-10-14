@@ -5,6 +5,14 @@ on:
     - cron: "0 22 * * 6"   # 毎週日曜 7:00 JST
   workflow_dispatch:
     inputs:
+      start:
+        description: "開始日（例: 2026-10-14）。空なら次の月曜から"
+        type: string
+        default: ""
+      days:
+        description: "何日分作るか。空なら7日"
+        type: string
+        default: ""
       dry_run:
         description: "ダミーデータで試す（楽天APIを使わない）"
         type: boolean
@@ -35,12 +43,14 @@ jobs:
           RAKUTEN_AFFILIATE_ID: ${{ secrets.RAKUTEN_AFFILIATE_ID }}
           RAKUTEN_ORIGIN: ${{ secrets.RAKUTEN_ORIGIN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          START: ${{ inputs.start }}
+          DAYS: ${{ inputs.days }}
         run: |
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            python scripts/generate.py --dry-run
-          else
-            python scripts/generate.py
-          fi
+          ARGS=""
+          [ -n "$START" ] && ARGS="$ARGS --start $START"
+          [ -n "$DAYS" ] && ARGS="$ARGS --days $DAYS"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          python scripts/generate.py $ARGS
 
       - name: コミットして公開
         run: |
