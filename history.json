@@ -1,145 +1,5 @@
 [
 {
-"itemCode": "shopmarna:10006689",
-"date": "2026-10-19"
-},
-{
-"itemCode": "at-life:10111441",
-"date": "2026-10-19"
-},
-{
-"itemCode": "shopmarna:10006591",
-"date": "2026-10-19"
-},
-{
-"itemCode": "porto3:10000309",
-"date": "2026-10-19"
-},
-{
-"itemCode": "nyandemoya:10000191",
-"date": "2026-10-19"
-},
-{
-"itemCode": "flaner:10022237",
-"date": "2026-10-20"
-},
-{
-"itemCode": "nyandemoya:10000276",
-"date": "2026-10-20"
-},
-{
-"itemCode": "mobileplus:10212974",
-"date": "2026-10-20"
-},
-{
-"itemCode": "wao-shop:10225691",
-"date": "2026-10-20"
-},
-{
-"itemCode": "gogogo-shop:10000005",
-"date": "2026-10-20"
-},
-{
-"itemCode": "oobikiyaking:10059117",
-"date": "2026-10-21"
-},
-{
-"itemCode": "r1-shop:10000158",
-"date": "2026-10-21"
-},
-{
-"itemCode": "sancyokubin:10000418",
-"date": "2026-10-21"
-},
-{
-"itemCode": "roomy:10015006",
-"date": "2026-10-21"
-},
-{
-"itemCode": "bunbougu-shibuya:10061033",
-"date": "2026-10-21"
-},
-{
-"itemCode": "momonoya:10000039",
-"date": "2026-10-22"
-},
-{
-"itemCode": "keyuca:10037918",
-"date": "2026-10-22"
-},
-{
-"itemCode": "queenscity:10000246",
-"date": "2026-10-22"
-},
-{
-"itemCode": "asia-kobo:10000809",
-"date": "2026-10-22"
-},
-{
-"itemCode": "plumriver:10000047",
-"date": "2026-10-22"
-},
-{
-"itemCode": "neoryshop:10000007",
-"date": "2026-10-23"
-},
-{
-"itemCode": "yayapapus:10000595",
-"date": "2026-10-23"
-},
-{
-"itemCode": "bigtonya:10000062",
-"date": "2026-10-23"
-},
-{
-"itemCode": "jiggybox:10032030",
-"date": "2026-10-23"
-},
-{
-"itemCode": "authentic-one:10000187",
-"date": "2026-10-23"
-},
-{
-"itemCode": "rennkou-syouji:10020183",
-"date": "2026-10-24"
-},
-{
-"itemCode": "jiggybox:10039694",
-"date": "2026-10-24"
-},
-{
-"itemCode": "kouei2014:10002996",
-"date": "2026-10-24"
-},
-{
-"itemCode": "shippotoseikatsu:10000087",
-"date": "2026-10-24"
-},
-{
-"itemCode": "kasyou-morin:10000037",
-"date": "2026-10-24"
-},
-{
-"itemCode": "ibesen:10000240",
-"date": "2026-10-25"
-},
-{
-"itemCode": "shizennoyakata:10004585",
-"date": "2026-10-25"
-},
-{
-"itemCode": "bwear:10001030",
-"date": "2026-10-25"
-},
-{
-"itemCode": "tokyobiken:10000010",
-"date": "2026-10-25"
-},
-{
-"itemCode": "yukinosizuku:10010263",
-"date": "2026-10-25"
-},
-{
 "itemCode": "clock:10001354",
 "date": "2026-10-14"
 },
@@ -218,5 +78,117 @@
 {
 "itemCode": "megumistore:10001427",
 "date": "2026-10-18"
+},
+{
+"itemCode": "shopmarna:10006575",
+"date": "2026-10-19"
+},
+{
+"itemCode": "shopmarna:10006688",
+"date": "2026-10-19"
+},
+{
+"itemCode": "porto3:10000309",
+"date": "2026-10-19"
+},
+{
+"itemCode": "royal3000:10010176",
+"date": "2026-10-19"
+},
+{
+"itemCode": "nyandemoya:10000191",
+"date": "2026-10-20"
+},
+{
+"itemCode": "flaner:10022237",
+"date": "2026-10-20"
+},
+{
+"itemCode": "nyandemoya:10000276",
+"date": "2026-10-20"
+},
+{
+"itemCode": "mobileplus:10212974",
+"date": "2026-10-20"
+},
+{
+"itemCode": "wao-shop:10225691",
+"date": "2026-10-21"
+},
+{
+"itemCode": "gogogo-shop:10000005",
+"date": "2026-10-21"
+},
+{
+"itemCode": "oobikiyaking:10059117",
+"date": "2026-10-21"
+},
+{
+"itemCode": "r1-shop:10000158",
+"date": "2026-10-21"
+},
+{
+"itemCode": "sancyokubin:10000418",
+"date": "2026-10-22"
+},
+{
+"itemCode": "dadcco:10000032",
+"date": "2026-10-22"
+},
+{
+"itemCode": "roomy:10015006",
+"date": "2026-10-22"
+},
+{
+"itemCode": "momonoya:10000039",
+"date": "2026-10-22"
+},
+{
+"itemCode": "bunbougu-shibuya:10061033",
+"date": "2026-10-23"
+},
+{
+"itemCode": "queenscity:10000246",
+"date": "2026-10-23"
+},
+{
+"itemCode": "asia-kobo:10000809",
+"date": "2026-10-23"
+},
+{
+"itemCode": "takara-jiang:10034529",
+"date": "2026-10-23"
+},
+{
+"itemCode": "plumriver:10000047",
+"date": "2026-10-24"
+},
+{
+"itemCode": "neoryshop:10000007",
+"date": "2026-10-24"
+},
+{
+"itemCode": "yayapapus:10000595",
+"date": "2026-10-24"
+},
+{
+"itemCode": "auc-worldstore:10055043",
+"date": "2026-10-24"
+},
+{
+"itemCode": "jiggybox:10032030",
+"date": "2026-10-25"
+},
+{
+"itemCode": "authentic-one:10000187",
+"date": "2026-10-25"
+},
+{
+"itemCode": "rennkou-syouji:10020183",
+"date": "2026-10-25"
+},
+{
+"itemCode": "kouei2014:10002996",
+"date": "2026-10-25"
 }
 ]
