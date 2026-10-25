@@ -7,6 +7,10 @@ on:
     - cron: "13 20 * * 6"  # 日曜 5:13 JST
     - cron: "43 22 * * 6"  # 日曜 7:43 JST（予備）
     - cron: "23 2 * * 0"   # 日曜 11:23 JST（予備）
+  # .github/run-request を書き換えて push すると実行される（Claude から実行するための入口）
+  push:
+    branches: [main]
+    paths: [".github/run-request"]
   workflow_dispatch:
     inputs:
       start:
