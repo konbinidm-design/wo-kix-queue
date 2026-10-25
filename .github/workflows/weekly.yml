@@ -58,7 +58,7 @@ jobs:
           [ -n "$START" ] && ARGS="$ARGS --start $START"
           [ -n "$DAYS" ] && ARGS="$ARGS --days $DAYS"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
-          if [ "${{ github.event_name }}" = "schedule" ]; then ARGS="$ARGS --skip-if-exists"; fi
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then ARGS="$ARGS --skip-if-exists"; fi
           python scripts/generate.py $ARGS
 
       - name: コミットして公開
