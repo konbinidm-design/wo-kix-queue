@@ -685,6 +685,7 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="API を呼ばずダミーで生成")
     ap.add_argument("--start", help="開始日 YYYY-MM-DD（省略時は次の月曜）")
     ap.add_argument("--days", type=int, help="何日分作るか（省略時は config の days）")
+    ap.add_argument("--skip-if-exists", action="store_true", help="その週がもうあれば何もしない（定期実行の予備用）")
     args = ap.parse_args()
 
     now = dt.datetime.now(JST)
@@ -713,6 +714,9 @@ def main() -> None:
         print(f"{len(items)}/{need} 件を選択")
 
     week_dir = DOCS / week
+    if args.skip_if_exists and (week_dir / "posts.json").exists():
+        print(f"::notice::{week} の分はもう作成済みなので何もしません")
+        return
     if week_dir.exists():
         shutil.rmtree(week_dir)
     week_dir.mkdir(parents=True)

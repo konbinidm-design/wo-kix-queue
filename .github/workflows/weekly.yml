@@ -2,7 +2,11 @@ name: 週次投稿キュー生成
 
 on:
   schedule:
-    - cron: "0 22 * * 6"   # 毎週日曜 7:00 JST
+    # GitHub の定期実行は遅れたり飛ばされたりするので、日曜に3回チャンスを用意
+    # （作成済みなら2回目以降は何もしない）
+    - cron: "13 20 * * 6"  # 日曜 5:13 JST
+    - cron: "43 22 * * 6"  # 日曜 7:43 JST（予備）
+    - cron: "23 2 * * 0"   # 日曜 11:23 JST（予備）
   workflow_dispatch:
     inputs:
       start:
@@ -50,6 +54,7 @@ jobs:
           [ -n "$START" ] && ARGS="$ARGS --start $START"
           [ -n "$DAYS" ] && ARGS="$ARGS --days $DAYS"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then ARGS="$ARGS --skip-if-exists"; fi
           python scripts/generate.py $ARGS
 
       - name: コミットして公開
