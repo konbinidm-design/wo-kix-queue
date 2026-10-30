@@ -1,3 +1,14 @@
 {
-  "items": []
+  "items": [
+    {
+      "no": 1,
+      "date": "2026-10-31",
+      "topic": "もし雷でご飯を炊こうとすると",
+      "product_name": "simplus 炊飯器 4合炊き マイコン式 SP-RCMC4",
+      "image_url": "https://thumbnail.image.rakuten.co.jp/@0_mall/rcmdin/cabinet/eb06/eb-4582226844157.jpg?_ex=400x400",
+      "affiliate_url": "https://hb.afl.rakuten.co.jp/hgc/g00r09tn.jcy23168.g00r09tn.jcy24cd2/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Frcmdin%2Feb-4582226844157%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Frcmdin%2Fi%2F10466434%2F&rafcid=wsc_i_is_8bad81dd-5729-4dfb-b5ed-ddc522dec866",
+      "comment_prompt": "好きなご飯のお供",
+      "comment_emoji": "🍚"
+    }
+  ]
 }
