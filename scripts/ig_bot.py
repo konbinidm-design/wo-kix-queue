@@ -84,9 +84,9 @@ def commenter(comment: dict) -> str:
 
 def dm_text(config: dict, no: int) -> str:
     if config["dm_include_url"]:
-        guide = f"動画の商品はこちらです👇\n{config['links_page']}#no{no}\n※楽天のページに移動します #PR"
+        guide = f"動画の商品はこちらです👇\n{config['links_page']}#no{no}\n※楽天のページに移動します"
     else:
-        guide = f"動画の商品は、プロフィールのリンクの「No.{no}」から見られます。\n※楽天のページに移動します #PR"
+        guide = f"動画の商品は、プロフィールのリンクの「No.{no}」から見られます。\n※楽天のページに移動します"
     return f"コメントありがとうございます！\n{guide}"
 
 
