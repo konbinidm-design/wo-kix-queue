@@ -49,5 +49,5 @@
 - `docs/links/`：インスタのプロフィールに貼る商品リンクページ（https://konbinidm-design.github.io/wo-kix-queue/links/ ）。中身は `docs/links/links.json`。もしも動画の `pipeline/publish_link.py` が追加する。
 - `scripts/ig_bot.py`（15分おき）：インスタのコメントにプライベート返信を送る。送信済みの記録は `state/ig_replied.json` にハッシュ値で残す。
 - `scripts/ig_refresh_token.py`（週1回）：アクセストークンを更新する。失敗すると Issue ができる。
-- `ig_bot_config.json` の `dm_include_url`：DMに商品ページのURLを入れるか。楽天アフィリエイトのガイドラインは、自動ツールでアフィリエイトリンクやそれを載せたページのURLをSNSのDMに載せることを禁止しているので、`false`（URLなし）にしている。
+- `ig_bot_config.json` の `dm_include_url`：DMに商品ページのURLを入れるか。今は `true`（2026-10-31 ユーザーの判断）。楽天アフィリエイトのガイドラインは、自動ツールでアフィリエイトリンクやそれを載せたページのURLをSNSのDMに載せることを禁止している点に注意。
 - 必要な Secrets：`IG_ACCESS_TOKEN`、`IG_STATE_SALT`、`SECRETS_PAT`。未設定の間は何もしない。

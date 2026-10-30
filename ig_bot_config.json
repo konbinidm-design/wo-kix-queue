@@ -1,5 +1,5 @@
 {
-  "dm_include_url": false,
+  "dm_include_url": true,
   "max_dm_per_run": 20,
   "reel_window_days": 14,
   "reply_window_days": 7,

@@ -87,7 +87,7 @@ def dm_text(config: dict, no: int) -> str:
         guide = f"動画の商品はこちらです👇\n{config['links_page']}#no{no}\n※楽天のページに移動します #PR"
     else:
         guide = f"動画の商品は、プロフィールのリンクの「No.{no}」から見られます。\n※楽天のページに移動します #PR"
-    return f"コメントありがとうございます！\n{guide}\n（このメッセージは自動で送っています）"
+    return f"コメントありがとうございます！\n{guide}"
 
 
 def select_targets(comments: list[dict], me: str, salt: str, media_id: str, state: dict,
