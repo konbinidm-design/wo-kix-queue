@@ -4,7 +4,7 @@ GitHub Actions（.github/workflows/ig-bot.yml）が定期的に実行する。
 公開リポジトリなので、誰にいつ送ったかが読めないよう、記録はハッシュ値にして残す。
 
 必要な環境変数：
-  IG_ACCESS_TOKEN  インスタのアクセストークン（なければ何もしないで終わる）
+  IG_ACCESS_TOKEN  統合ログインのシステムユーザートークン（なければ何もしないで終わる）
   IG_STATE_SALT    記録をハッシュ値にするための秘密の文字列
 """
 import datetime as dt
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "ig_bot_config.json"
 LINKS_PATH = ROOT / "docs" / "links" / "links.json"
 STATE_PATH = ROOT / "state" / "ig_replied.json"
-API = "https://graph.instagram.com"
+API = "https://graph.facebook.com"
 
 URL_RE = re.compile(r"https?://|www\.|\b[\w-]+\.(?:com|net|org|jp|ly|me|co)\b", re.IGNORECASE)
 NO_RE = re.compile(r"No\.(\d+)")
@@ -133,11 +133,11 @@ def run(token: str, salt: str, now: dt.datetime | None = None) -> int:
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     links = {i["no"]: i for i in json.loads(LINKS_PATH.read_text(encoding="utf-8"))["items"]}
     state = load_state()
-    profile = api("GET", "me", token, {"fields": "user_id,username"})
-    me, my_id = profile.get("username", ""), profile.get("user_id") or profile.get("id")
+    my_id = config["ig_user_id"]
+    me = api("GET", my_id, token, {"fields": "username"}).get("username", "")
 
     window = now - dt.timedelta(days=config["reel_window_days"])
-    media = fetch_all("me/media", token, {"fields": "id,caption,timestamp,media_product_type", "limit": 50})
+    media = fetch_all(f"{my_id}/media", token, {"fields": "id,caption,timestamp,media_product_type", "limit": 50})
     sent, errors = 0, 0
     for m in media:
         if m.get("media_product_type") != "REELS" or parse_time(m["timestamp"]) < window:
