@@ -67,15 +67,19 @@ def claim(action: str, key: str) -> dict:
     url, secret = os.environ.get("IG_CLAIM_URL"), os.environ.get("IG_CLAIM_SECRET")
     if not url or not secret:
         return {}
-    req = urllib.request.Request(url, data=json.dumps({"action": action, "key": key}).encode(), method="POST", headers={
-        "Authorization": f"Bearer {secret}",
-        "Content-Type": "application/json",
-    })
     try:
+        req = urllib.request.Request(url.strip(), data=json.dumps({"action": action, "key": key}).encode(), method="POST", headers={
+            "Authorization": f"Bearer {secret.strip()}",
+            "Content-Type": "application/json",
+            "User-Agent": "wo-kix-ig-bot",  # Cloudflare は Python の標準の名前を断る
+        })
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode())
-    except OSError as e:
-        raise ApiError(str(e)) from e
+    except urllib.error.HTTPError as e:
+        raise ApiError(f"HTTP {e.code}") from e
+    except (OSError, ValueError) as e:
+        # 合言葉が混ざらないよう、エラーの種類だけを出す
+        raise ApiError(type(e).__name__) from e
 
 
 def fetch_all(path: str, token: str, params: dict) -> list[dict]:
