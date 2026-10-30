@@ -75,6 +75,15 @@ test("普通のコメントにDMを送る", async () => {
   assert.ok(sent[0].message.text.includes("https://links.test/#no999"));
 });
 
+test("コメントIDが id で届いても送れる", async () => {
+  const payload = event("1", "おにぎり");
+  const value = payload.entry[0].changes[0].value;
+  value.id = value.comment_id;
+  delete value.comment_id;
+  await post(env(makeClaims().obj), payload);
+  assert.equal(sent[0].recipient.comment_id, "1");
+});
+
 test("送らないコメント", async () => {
   const e = env(makeClaims().obj);
   await post(e, event("1", "https://example.com"));

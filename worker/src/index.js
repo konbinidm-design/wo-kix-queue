@@ -95,7 +95,7 @@ async function handleComment(env, value) {
   if (!(await claims(env, "claim", key)).granted) return;
   try {
     await graph(env, "POST", `${env.IG_USER_ID}/messages`, {
-      body: { recipient: { comment_id: value.comment_id }, message: { text: dmText(env, no) } },
+      body: { recipient: { comment_id: value.comment_id ?? value.id }, message: { text: dmText(env, no) } },
     });
   } catch (e) {
     // 記録を取り消す。5分おきのボットがやり直す
