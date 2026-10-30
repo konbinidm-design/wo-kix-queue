@@ -128,7 +128,7 @@ export default {
     }
     if (url.pathname === "/webhook" && request.method === "POST") {
       const body = await request.text();
-      if (!(await validSignature(env.IG_APP_SECRET, body, request.headers.get("X-Hub-Signature-256")))) {
+      if (!env.IG_APP_SECRET || !(await validSignature(env.IG_APP_SECRET, body, request.headers.get("X-Hub-Signature-256")))) {
         return new Response("forbidden", { status: 403 });
       }
       // Meta にはすぐ返事をして、送信は裏で続ける
@@ -136,7 +136,7 @@ export default {
       return new Response("ok");
     }
     if (url.pathname === "/claim" && request.method === "POST") {
-      if (request.headers.get("Authorization") !== `Bearer ${env.CLAIM_SECRET}`) {
+      if (!env.CLAIM_SECRET || request.headers.get("Authorization") !== `Bearer ${env.CLAIM_SECRET}`) {
         return new Response("forbidden", { status: 403 });
       }
       const { action, key } = await request.json();
