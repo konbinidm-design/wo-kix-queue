@@ -1,14 +1,3 @@
 {
-  "items": [
-    {
-      "no": 999,
-      "date": "2026-10-30",
-      "topic": "テスト（あとで消します）",
-      "product_name": "テスト用の項目",
-      "image_url": "",
-      "affiliate_url": "https://www.rakuten.co.jp/",
-      "comment_prompt": "",
-      "comment_emoji": ""
-    }
-  ]
+  "items": []
 }
