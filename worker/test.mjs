@@ -11,16 +11,16 @@ const hook = `export async function resolve(s, c, n) {
   return n(s, c);
 }`;
 register("data:text/javascript," + encodeURIComponent(hook));
-const { default: worker, Claims, personKey } = await import("./src/index.js");
+const { default: worker, Claims, personKey, collectStats } = await import("./src/index.js");
 
 const env = (claimObj) => ({
   IG_USER_ID: "99", IG_USERNAME: "wo_kix", LINKS_PAGE: "https://links.test/", REEL_WINDOW_DAYS: "14",
-  IG_ACCESS_TOKEN: "t", IG_STATE_SALT: "s", IG_APP_SECRET: "app", VERIFY_TOKEN: "v", CLAIM_SECRET: "c",
+  IG_ACCESS_TOKEN: "t", IG_STATE_SALT: "s", IG_APP_SECRET: "app", VERIFY_TOKEN: "v", CLAIM_SECRET: "c", STATS_SECRET: "st",
   CLAIMS: { idFromName: () => "id", get: () => ({ fetch: (u, init) => claimObj.fetch(new Request(u, init)) }) },
 });
 function makeClaims() {
   const m = new Map();
-  const storage = { get: async (k) => m.get(k), put: async (k, v) => m.set(k, v), delete: async (k) => m.delete(k) };
+  const storage = { get: async (k) => m.get(k), put: async (k, v) => m.set(k, v), delete: async (k) => m.delete(k), list: async ({ prefix }) => new Map([...m].filter(([k]) => k.startsWith(prefix))) };
   return { store: m, obj: new Claims({ storage }, {}) };
 }
 const sign = (body, secret = "app") => "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
@@ -150,4 +150,39 @@ test("ボット用の入口は合言葉が必要で、両方の仕組みで1回�
   assert.equal(sent.length, 0);
   await call("c", "done", key);
   assert.equal((await (await call("c", "claim", key)).json()).granted, false);
+});
+
+test("リールの数字を24時間後と1週間後に1回ずつ記録する", async () => {
+  const c = makeClaims(); const e = env(c.obj);
+  const posted = Date.parse("2026-10-01T00:00:00Z");
+  let insightsFail = false, insightCalls = 0;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes("/99/media?")) return Response.json({ data: [
+      { id: "r1", caption: "題名\nNo.1", timestamp: "2026-10-01T00:00:00+0000", permalink: "https://i/r1", media_product_type: "REELS", like_count: 5, comments_count: 2 },
+      { id: "f1", caption: "写真", timestamp: "2026-10-01T00:00:00+0000", media_product_type: "FEED" },
+    ] });
+    if (u.includes("/r1/insights?")) {
+      insightCalls++;
+      if (insightsFail) return new Response("no", { status: 400 });
+      return Response.json({ data: [{ name: "views", values: [{ value: 100 }] }, { name: "saved", values: [{ value: 3 }] }] });
+    }
+    throw new Error("想定外の通信 " + u);
+  };
+  await collectStats(e, posted + 23 * 3600000);
+  assert.equal(c.store.size, 0); // まだ24時間たっていない
+  await collectStats(e, posted + 25 * 3600000);
+  await collectStats(e, posted + 26 * 3600000); // 同じ時点は2回記録しない
+  assert.equal(c.store.size, 1);
+  assert.equal(insightCalls, 1);
+  const first = c.store.get("stats:r1:24h");
+  assert.deepEqual([first.views, first.saved, first.likes, first.caption, first.hours_after], [100, 3, 5, "題名", 25]);
+  insightsFail = true; // 再生数が読めなくても、いいねとコメントは残す
+  await collectStats(e, posted + 7 * 24 * 3600000);
+  const week = c.store.get("stats:r1:7d");
+  assert.equal(week.comments, 2);
+  assert.ok(week.insights_error);
+  const res = await worker.fetch(new Request("https://w/stats", { headers: { Authorization: "Bearer st" } }), e, {});
+  assert.equal((await res.json()).length, 2);
+  assert.equal((await worker.fetch(new Request("https://w/stats", { headers: { Authorization: "Bearer x" } }), e, {})).status, 403);
 });

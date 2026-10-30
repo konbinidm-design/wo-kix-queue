@@ -7,17 +7,29 @@
 //   IG_APP_SECRET    Meta アプリのシークレット（連絡が本物か確かめる）
 //   VERIFY_TOKEN     Meta に登録する確認用の文字列
 //   CLAIM_SECRET     ボットが /claim を呼ぶときの合言葉
+//   STATS_SECRET     パソコンから /stats を読むときの合言葉
 import { DurableObject } from "cloudflare:workers";
 
 const API = "https://graph.facebook.com";
 const URL_RE = /https?:\/\/|www\.|\b[\w-]+\.(?:com|net|org|jp|ly|me|co)\b/i;
 const NO_RE = /No\.(\d+)/;
 const PENDING_MS = 10 * 60 * 1000; // 送信中のまま止まった記録は、10分でやり直せるようにする
+const HOUR_MS = 60 * 60 * 1000;
+const STATS_POINTS = [["24h", 24 * HOUR_MS], ["7d", 7 * 24 * HOUR_MS]]; // 数字を記録する時点
+const STATS_METRICS = "views,reach,likes,comments,saved,shares,ig_reels_avg_watch_time";
 
 // 同じ人に2回送らないための記録。1つのオブジェクトが順番に処理するので、同時に来ても重複しない。
 export class Claims extends DurableObject {
   async fetch(request) {
-    const { action, key } = await request.json();
+    const { action, key, value } = await request.json();
+    if (action === "stats_has") return Response.json({ has: Boolean(await this.ctx.storage.get(key)) });
+    if (action === "stats_put") {
+      await this.ctx.storage.put(key, value);
+      return Response.json({ ok: true });
+    }
+    if (action === "stats_list") {
+      return Response.json([...(await this.ctx.storage.list({ prefix: "stats:" })).values()]);
+    }
     const now = Date.now();
     const current = await this.ctx.storage.get(key);
     if (action === "claim") {
@@ -33,9 +45,9 @@ export class Claims extends DurableObject {
   }
 }
 
-function claims(env, action, key) {
+function claims(env, action, key, value) {
   const stub = env.CLAIMS.get(env.CLAIMS.idFromName("all"));
-  return stub.fetch("https://claims/", { method: "POST", body: JSON.stringify({ action, key }) }).then((r) => r.json());
+  return stub.fetch("https://claims/", { method: "POST", body: JSON.stringify({ action, key, value }) }).then((r) => r.json());
 }
 
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -105,6 +117,34 @@ async function handleComment(env, value) {
   await claims(env, "done", key);
 }
 
+const parseTime = (text) => Date.parse(text.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+
+// リールの数字を、投稿から24時間後と1週間後に1回ずつ記録する
+export async function collectStats(env, now = Date.now()) {
+  const fields = "id,caption,timestamp,permalink,media_product_type,like_count,comments_count";
+  const { data = [] } = await graph(env, "GET", `${env.IG_USER_ID}/media`, { params: { fields, limit: "50" } });
+  for (const m of data) {
+    if (m.media_product_type !== "REELS") continue;
+    const age = now - parseTime(m.timestamp);
+    for (const [point, wait] of STATS_POINTS) {
+      const key = `stats:${m.id}:${point}`;
+      if (age < wait || (await claims(env, "stats_has", key)).has) continue;
+      const record = {
+        media_id: m.id, point, recorded_at: new Date(now).toISOString(), hours_after: Math.round(age / HOUR_MS),
+        posted_at: m.timestamp, permalink: m.permalink, caption: (m.caption ?? "").split("\n")[0],
+        likes: m.like_count ?? null, comments: m.comments_count ?? null,
+      };
+      try {
+        const { data: metrics = [] } = await graph(env, "GET", `${m.id}/insights`, { params: { metric: STATS_METRICS } });
+        for (const x of metrics) record[x.name] = x.values?.[0]?.value ?? x.total_value?.value ?? null;
+      } catch (e) {
+        record.insights_error = e.message; // 再生数などが読めなくても、いいねとコメントは残す
+      }
+      await claims(env, "stats_put", key, record);
+    }
+  }
+}
+
 async function handleEvents(env, payload) {
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
@@ -142,6 +182,15 @@ export default {
       const { action, key } = await request.json();
       return Response.json(await claims(env, action, key));
     }
+    if (url.pathname === "/stats" && request.method === "GET") {
+      if (!env.STATS_SECRET || request.headers.get("Authorization") !== `Bearer ${env.STATS_SECRET}`) {
+        return new Response("forbidden", { status: 403 });
+      }
+      return Response.json(await claims(env, "stats_list"));
+    }
     return new Response("not found", { status: 404 });
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(collectStats(env));
   },
 };

@@ -2,6 +2,9 @@ name = "wo-kix-ig-webhook"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
 
+[triggers]
+crons = ["*/30 * * * *"]  # 30分おきに、リールの数字を記録する時点か確かめる
+
 [vars]
 IG_USER_ID = "17841448127004569"
 IG_USERNAME = "wo_kix"
