@@ -2,7 +2,7 @@ name: インスタのコメント返信
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"  # 15分おき（混雑する0分を避ける）
+    - cron: "2-57/5 * * * *"  # 5分おき（混雑する0分を避ける）
   workflow_dispatch:
 
 permissions:
