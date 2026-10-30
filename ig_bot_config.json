@@ -1,0 +1,7 @@
+{
+  "dm_include_url": false,
+  "max_dm_per_run": 20,
+  "reel_window_days": 14,
+  "reply_window_days": 7,
+  "links_page": "https://konbinidm-design.github.io/wo-kix-queue/links/"
+}

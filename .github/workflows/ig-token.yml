@@ -1,0 +1,30 @@
+name: インスタのトークン更新
+
+on:
+  schedule:
+    - cron: "41 18 * * 1"  # 毎週火曜 3:41 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - run: pip install pynacl==1.5.0
+
+      - name: トークンを更新
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          SECRETS_PAT: ${{ secrets.SECRETS_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/ig_refresh_token.py

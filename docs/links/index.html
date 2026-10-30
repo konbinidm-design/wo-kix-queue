@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紹介した商品</title>
+<style>
+  :root { --bg:#faf8f3; --card:#fff; --fg:#222; --sub:#6b6b66; --line:#e6e3da; --accent:#bf0000; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1b1b1a; --card:#262624; --fg:#eee; --sub:#aaa; --line:#3a3a38; --accent:#ff6b6b; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:"Hiragino Sans","Yu Gothic UI",sans-serif; line-height:1.6; }
+  main { max-width:560px; margin:0 auto; padding:16px 16px 48px; }
+  h1 { font-size:20px; margin:8px 0 4px; }
+  .pr { font-size:13px; color:var(--sub); margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:0 0 12px; scroll-margin-top:12px; }
+  .card:target { border-color:var(--accent); border-width:2px; }
+  .card img { display:block; width:100%; max-height:280px; object-fit:contain; margin:0 0 10px; }
+  .no { font-size:13px; font-weight:bold; color:var(--accent); }
+  .topic { font-size:14px; color:var(--sub); margin:2px 0 4px; }
+  .name { font-size:16px; font-weight:bold; margin:0 0 10px; }
+  .btn { display:block; text-align:center; padding:12px; border-radius:8px; background:var(--accent); color:#fff; font-weight:bold; text-decoration:none; }
+  .empty { color:var(--sub); text-align:center; padding:32px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>無駄遣い推進課が紹介した商品</h1>
+  <p class="pr">#PR　このページは楽天アフィリエイトを利用しています。「楽天で見る」を押すと、楽天市場の商品ページに移動します。</p>
+  <div id="list"></div>
+</main>
+<script>
+(async () => {
+  const root = document.getElementById("list");
+  const say = (text) => {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = text;
+    root.replaceChildren(p);
+  };
+  let items;
+  try {
+    const res = await fetch("links.json", { cache: "no-store" });
+    items = (await res.json()).items;
+  } catch (e) {
+    say("読み込めませんでした。少し待ってから開き直してください。");
+    return;
+  }
+  if (!items.length) {
+    say("まだ商品はありません。");
+    return;
+  }
+  items.sort((a, b) => b.no - a.no);
+  for (const item of items) {
+    const card = document.createElement("article");
+    card.className = "card";
+    card.id = `no${item.no}`;
+    if (item.image_url) {
+      const img = document.createElement("img");
+      img.src = item.image_url;
+      img.alt = item.product_name;
+      img.loading = "lazy";
+      card.append(img);
+    }
+    const no = document.createElement("div");
+    no.className = "no";
+    no.textContent = `No.${item.no}`;
+    const topic = document.createElement("div");
+    topic.className = "topic";
+    topic.textContent = item.topic;
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = item.product_name;
+    const a = document.createElement("a");
+    a.className = "btn";
+    a.textContent = "楽天で見る";
+    a.rel = "sponsored noopener";
+    a.target = "_blank";
+    if (/^https:\/\//.test(item.affiliate_url)) a.href = item.affiliate_url;
+    card.append(no, topic, name, a);
+    root.append(card);
+  }
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+})();
+</script>
+</body>
+</html>

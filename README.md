@@ -43,3 +43,11 @@
 - `scripts/generate.py`：楽天商品検索API（QPS=1、2秒間隔）→ 重複除外（`history.json`）→ 画像を600pxで保存 → テンプレートで投稿文 → `docs/` に確認ページ
 - 古い週のフォルダは4週分だけ残して自動削除
 - 手元で試す：`python scripts/generate.py --dry-run`
+
+## 商品リンクページとインスタの自動返信
+
+- `docs/links/`：インスタのプロフィールに貼る商品リンクページ（https://konbinidm-design.github.io/wo-kix-queue/links/ ）。中身は `docs/links/links.json`。もしも動画の `pipeline/publish_link.py` が追加する。
+- `scripts/ig_bot.py`（15分おき）：インスタのコメントにプライベート返信を送る。送信済みの記録は `state/ig_replied.json` にハッシュ値で残す。
+- `scripts/ig_refresh_token.py`（週1回）：アクセストークンを更新する。失敗すると Issue ができる。
+- `ig_bot_config.json` の `dm_include_url`：DMに商品ページのURLを入れるか。楽天アフィリエイトのガイドラインは、自動ツールでアフィリエイトリンクやそれを載せたページのURLをSNSのDMに載せることを禁止しているので、`false`（URLなし）にしている。
+- 必要な Secrets：`IG_ACCESS_TOKEN`、`IG_STATE_SALT`、`SECRETS_PAT`。未設定の間は何もしない。
