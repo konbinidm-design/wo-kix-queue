@@ -27,6 +27,8 @@ jobs:
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_STATE_SALT: ${{ secrets.IG_STATE_SALT }}
+          IG_CLAIM_URL: ${{ secrets.IG_CLAIM_URL }}
+          IG_CLAIM_SECRET: ${{ secrets.IG_CLAIM_SECRET }}
         run: python scripts/ig_bot.py
 
       - name: 送信済みの記録を保存

@@ -6,6 +6,8 @@ GitHub Actions（.github/workflows/ig-bot.yml）が定期的に実行する。
 必要な環境変数：
   IG_ACCESS_TOKEN  統合ログインのシステムユーザートークン（なければ何もしないで終わる）
   IG_STATE_SALT    記録をハッシュ値にするための秘密の文字列
+  IG_CLAIM_URL     すぐ届く仕組み（worker/）の /claim のアドレス（なければ使わない）
+  IG_CLAIM_SECRET  その合言葉
 """
 import datetime as dt
 import hashlib
@@ -46,6 +48,22 @@ def api(method: str, path: str, token: str, params: dict | None = None, body: di
             return json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
         raise ApiError(f"HTTP {e.code}: {e.read().decode(errors='ignore')[:300]}") from e
+    except OSError as e:
+        raise ApiError(str(e)) from e
+
+
+def claim(action: str, key: str) -> dict:
+    """すぐ届く仕組み（worker/）と送信の記録を分け合う。未設定のときは何もしない。"""
+    url, secret = os.environ.get("IG_CLAIM_URL"), os.environ.get("IG_CLAIM_SECRET")
+    if not url or not secret:
+        return {}
+    req = urllib.request.Request(url, data=json.dumps({"action": action, "key": key}).encode(), method="POST", headers={
+        "Authorization": f"Bearer {secret}",
+        "Content-Type": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())
     except OSError as e:
         raise ApiError(str(e)) from e
 
@@ -158,6 +176,14 @@ def run(token: str, salt: str, now: dt.datetime | None = None) -> int:
                 print(f"1回の上限（{config['max_dm_per_run']}件）に達したので、残りは次回送ります")
                 save_state(state)
                 return errors
+            # すぐ届く仕組み（worker/）が先に送っていれば、ここでは送らない
+            try:
+                if not claim("claim", target["person_key"]).get("granted", True):
+                    continue
+            except ApiError as e:
+                print(f"::warning::送信の記録を確認できませんでした（No.{no}）：{e}")
+                errors += 1
+                continue
             try:
                 api("POST", f"{my_id}/messages", token, body={
                     "recipient": {"comment_id": target["comment"]["id"]},
@@ -167,7 +193,15 @@ def run(token: str, salt: str, now: dt.datetime | None = None) -> int:
                 # 止まらずに次へ。記録しないので次回やり直される
                 print(f"::warning::送信できませんでした（No.{no}）：{e}")
                 errors += 1
+                try:
+                    claim("release", target["person_key"])
+                except ApiError:
+                    pass  # 取り消せなくても、10分でやり直せるようになる
                 continue
+            try:
+                claim("done", target["person_key"])
+            except ApiError as e:
+                print(f"::warning::送信の記録を残せませんでした（No.{no}）：{e}")
             state["comments"].append(target["comment_key"])
             state["people"].append(target["person_key"])
             sent += 1

@@ -1,0 +1,17 @@
+name = "wo-kix-ig-webhook"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+IG_USER_ID = "17841448127004569"
+IG_USERNAME = "wo_kix"
+LINKS_PAGE = "https://konbinidm-design.github.io/wo-kix-queue/links/"
+REEL_WINDOW_DAYS = "14"
+
+[[durable_objects.bindings]]
+name = "CLAIMS"
+class_name = "Claims"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Claims"]
