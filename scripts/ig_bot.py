@@ -34,6 +34,16 @@ class ApiError(Exception):
     pass
 
 
+def error_text(raw: str) -> str:
+    """Meta のエラーから、読むのに必要なところだけを取り出す。"""
+    try:
+        err = json.loads(raw)["error"]
+    except (ValueError, KeyError, TypeError):
+        return raw[:300]
+    keys = ("code", "error_subcode", "message", "error_user_title", "error_user_msg")
+    return " / ".join(str(err[k]) for k in keys if k in err)
+
+
 def api(method: str, path: str, token: str, params: dict | None = None, body: dict | None = None) -> dict:
     url = f"{API}/{path}"
     if params:
@@ -47,7 +57,7 @@ def api(method: str, path: str, token: str, params: dict | None = None, body: di
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
-        raise ApiError(f"HTTP {e.code}: {e.read().decode(errors='ignore')[:300]}") from e
+        raise ApiError(f"HTTP {e.code}: {error_text(e.read().decode(errors='ignore'))}") from e
     except OSError as e:
         raise ApiError(str(e)) from e
 
