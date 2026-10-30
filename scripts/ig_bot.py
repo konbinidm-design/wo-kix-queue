@@ -156,12 +156,24 @@ def save_state(state: dict) -> None:
     STATE_PATH.write_text(json.dumps(state, indent=0) + "\n", encoding="utf-8")
 
 
+def ensure_subscribed(my_id: str, token: str) -> None:
+    """アプリとインスタのアカウントを結ぶ。結ばれていれば何もしない。失敗しても止めない。"""
+    try:
+        if api("GET", f"{my_id}/subscribed_apps", token).get("data"):
+            return
+        api("POST", f"{my_id}/subscribed_apps", token, {"subscribed_fields": "comments"})
+        print("::notice::アプリとインスタのアカウントを結びました")
+    except ApiError as e:
+        print(f"::warning::アプリとインスタのアカウントを結べませんでした：{e}")
+
+
 def run(token: str, salt: str, now: dt.datetime | None = None) -> int:
     now = now or dt.datetime.now(dt.timezone.utc)
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     links = {i["no"]: i for i in json.loads(LINKS_PATH.read_text(encoding="utf-8"))["items"]}
     state = load_state()
     my_id = config["ig_user_id"]
+    ensure_subscribed(my_id, token)
     me = api("GET", my_id, token, {"fields": "username"}).get("username", "")
 
     window = now - dt.timedelta(days=config["reel_window_days"])
